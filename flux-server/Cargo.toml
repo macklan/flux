@@ -1,0 +1,30 @@
+[package]
+name = "flux-server"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+documentation.workspace = true
+description = "Server implementation for Flux real-time communication"
+
+[dependencies]
+# Internal dependencies
+flux-core = { path = "../flux-core" }
+flux-redis = { path = "../flux-redis", optional = true }
+
+# External dependencies
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+[features]
+default = ["redis"]
+redis = ["flux-redis"]
+
+[dev-dependencies]
+tokio-test = { workspace = true }
