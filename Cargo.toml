@@ -1,9 +1,6 @@
 [workspace]
 members = [
-    "flux-core",
-    "flux-server", 
-    "flux-client",
-    "flux-redis",
+    "flux-server", "my-redis", 
 ]
 resolver = "2"
 
@@ -59,8 +56,3 @@ proptest = "1.4"
 url = "2.5"
 backoff = "0.4"
 testcontainers = "0.15"
-
-# Main binary crate
-[[bin]]
-name = "flux"
-path = "src/main.rs"
