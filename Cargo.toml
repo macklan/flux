@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "flux-server", "my-redis", 
+    "flux-server"
 ]
 resolver = "2"
 
