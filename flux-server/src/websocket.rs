@@ -3,9 +3,10 @@ use base64::Engine as _;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use sha1::{Digest, Sha1};
-use std::vec;
+use std::{pin, vec};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
+use tokio::time::{self, Duration, Instant};
 use uuid::Uuid;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -24,7 +25,7 @@ pub struct WebSocketClient {
     connection_state: ConnectionState,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "type")]
 pub enum ProtocolMessage {
     Join {},
@@ -32,6 +33,7 @@ pub enum ProtocolMessage {
     Message {},
 }
 
+#[derive(Clone, Debug)]
 pub enum Message {
     Protocol(ProtocolMessage),
     Ping,
@@ -51,7 +53,20 @@ impl WebSocketClient {
     }
 
     pub async fn run(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let mut last_pong = Instant::now();
+        let mut ping_interval = time::interval(Duration::from_secs(10));
+        ping_interval.set_missed_tick_behavior(time::MissedTickBehavior::Delay);
         loop {
+            tokio::select! {
+                _ = ping_interval.tick() => {
+                    self.send_message(&Message::Ping).await?;
+                    if last_pong.elapsed() > Duration::from_secs(20) {
+                        self.send_message(&Message::Close(1001, "Ping timeout".into())).await?;
+                        break;
+                    }
+                }
+            }
+
             match self.read_message().await? {
                 Message::Protocol(msg) => {
                     println!("Received protocol message: {:?}", msg);
@@ -61,7 +76,10 @@ impl WebSocketClient {
                     println!("PING");
                     self.send_message(&Message::Pong).await?;
                 }
-                Message::Pong => println!("PONG"),
+                Message::Pong => {
+                    println!("PONG");
+                    last_pong = Instant::now();
+                }
                 Message::Close(code, reason) => {
                     println!("CLOSE RECEIVED: code={}, reason={}", code, reason);
                     self.send_message(&Message::Close(1000, "".to_string()))
